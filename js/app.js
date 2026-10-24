@@ -32,6 +32,7 @@ const VIEWS = {
 };
 
 const TABS = Object.keys(VIEWS);
+const BUILD = 'v10';   // 每次部署 +1，方便确认手机上是哪一版
 
 /* ==================== 主题 ==================== */
 
@@ -372,6 +373,8 @@ function openDataMenu() {
           <span class="field__hint">所有金额会折算到这个货币做汇总</span>
         </label>
       </div>
+
+      <p class="buildtag">构建版本 ${BUILD} · 如果手机上不是这一版，从后台完全关掉 App 再打开一次</p>
 
       <div class="syncbox">
         <div class="syncbox__head">${icon('refresh', 15)}同步能力<span class="sync-dot" data-sync="${store.syncState.status}"></span></div>
