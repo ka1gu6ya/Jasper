@@ -132,14 +132,21 @@ code { font-family: var(--mono); font-size: 0.88em; }
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;              /* iOS 上用动态视口高度，避免底部被浏览器工具栏吃掉 */
   display: flex;
   flex-direction: column;
   background: var(--sidebar);
   border-right: 1px solid var(--border);
   padding: 10px 10px 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   gap: 2px;
   z-index: 40;
+  overflow: hidden;            /* 让内部列表自己滚，不要把固定区挤出去 */
 }
+
+.sidebar__head,
+.newtrip,
+.sidebar__foot { flex: 0 0 auto; }
 
 .sidebar__head {
   display: flex;
@@ -186,8 +193,11 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .newtrip:active { transform: translateY(0.5px); }
 
 .triplist {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;               /* 关键：flex 子项默认 min-height:auto，不加这个不会收缩，也就滚不动 */
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -2328,6 +2338,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
     z-index: 80;
   }
   body.is-sidebar .sidebar { transform: none; }
+  body.is-sidebar { overflow: hidden; }
 
   .sidebar .sidebar__close { display: grid; }
   .sidebar-scrim {
