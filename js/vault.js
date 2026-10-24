@@ -20,7 +20,7 @@
 import { store } from './store.js';
 import { rpc, randomKey } from './sync.js';
 import { isSyncConfigured } from './config.js';
-import { mergePayloads, COLLECTIONS } from './merge.js';
+import { mergePayloads, COLLECTIONS, stable } from './merge.js';
 
 const KEY_STORE = 'trailnote.sync.key';
 const BASE_STORE = 'trailnote.sync.base';
@@ -81,10 +81,11 @@ function saveMeta() {
 
 export function snapshot() {
   const d = store.data;
+  // 注意：不要把 meta 放进来。meta.updatedAt 每次换数据都会变，
+  // 放进快照会导致「启动时误判为有未同步改动」，每次开 App 都白推一版。
   const out = {
     schema: 1,
     app: 'trailnote',
-    meta: { updatedAt: d.meta.updatedAt },
     settings: d.settings,
   };
   for (const k of COLLECTIONS) out[k] = (d[k] || []).map((x) => x);
@@ -166,10 +167,17 @@ async function runSync() {
         return status();
       }
 
-      // 云端更新了 → 三方合并后再上传
+      // 云端更新了 → 三方合并
       const { merged, conflicts: c } = mergePayloads(base, snapshot(), remote.payload);
       conflicts = c.slice();
       applyMergedAndSync(merged);
+
+      // 合并结果如果和云端一模一样，就不要再推一次，
+      // 否则两台设备会互相「推来推去」，版本号无限涨。
+      if (stable(snapshot()) === stable(remote.payload)) {
+        finish(remote.rev, remote.payload);
+        return status();
+      }
 
       const res = await pushRemote(snapshot(), remote.rev);
       if (res && res.conflict) {
@@ -314,20 +322,26 @@ export function startVaultSync() {
   if (started) return;
   started = true;
   loadMeta();
-  if (!key) return;
 
-  // 打开就先拉一次
-  runSync();
-
+  // 订阅必须无条件建立：即使启动时还没同步码，
+  // 用户之后在会话里开启同步也要能自动上传。
   store.subscribe(() => {
-    if (applying) return;
+    if (!key || applying) return;
     dirty = true;
     schedule();
   });
 
-  window.addEventListener('online', () => { if (dirty) schedule(600); });
+  window.addEventListener('online', () => { if (key && dirty) schedule(600); });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') schedule(300);
+    if (key && document.visibilityState === 'visible') schedule(300);
   });
-  window.addEventListener('focus', () => schedule(300));
+  window.addEventListener('focus', () => { if (key) schedule(300); });
+
+  // 打开时就检查：上次有没有没来得及上传的改动（比如关得太快、当时没网）
+  if (key) {
+    try {
+      if (base && stable(snapshot()) !== stable(base)) dirty = true;
+    } catch {}
+    runSync();
+  }
 }
