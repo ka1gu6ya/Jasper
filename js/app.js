@@ -32,7 +32,7 @@ const VIEWS = {
 };
 
 const TABS = Object.keys(VIEWS);
-const BUILD = 'v10';   // 每次部署 +1，方便确认手机上是哪一版
+const BUILD = 'v11';   // 每次部署 +1，方便确认手机上是哪一版
 
 /* ==================== 主题 ==================== */
 

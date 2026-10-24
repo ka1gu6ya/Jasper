@@ -3,7 +3,7 @@
    离线优先：App Shell 全部预缓存，断网也能打开、能记账、能查装备。
    ============================================================ */
 
-const VERSION = 'trailnote-v10';
+const VERSION = 'trailnote-v11';
 const SHELL = `${VERSION}-shell`;
 
 const ASSETS = [

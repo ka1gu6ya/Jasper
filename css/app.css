@@ -2344,14 +2344,13 @@ code { font-family: var(--mono); font-size: 0.88em; }
        原来 height:100dvh + 底部吸附，一旦视口高度算大了（iOS Safari 的常见问题），
        整个底部按钮区就被顶到屏幕外面，而且怎么划都够不着。
        改成「内容多高就多高，超过上限再内部滚动」，任何机型都不会被切。 */
-    height: auto;
-    max-height: 100dvh;
-    max-height: 88vh;
+    /* 高度回满屏，但底部按钮不再吸附在屏幕最底。
+       即使 100dvh 算得比可视区大，被切掉的也只是下方空白，不会切到按钮。 */
+    height: 100dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding-bottom: calc(18px + env(safe-area-inset-bottom));
-    border-bottom-right-radius: 14px;
     transform: translateX(-100%);
     transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
     box-shadow: var(--shadow-3);
