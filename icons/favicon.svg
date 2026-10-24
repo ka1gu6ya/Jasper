@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TrailNote">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#387a5e"/>
+      <stop offset="1" stop-color="#1c4434"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <circle cx="152" cy="138" r="27" fill="#e9cb8e"/>
+  <path d="M342 186 L478 392 L206 392 Z" fill="#cfe6da"/>
+  <path d="M238 146 L410 392 L66 392 Z" fill="#ffffff"/>
+</svg>
