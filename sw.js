@@ -3,7 +3,7 @@
    离线优先：App Shell 全部预缓存，断网也能打开、能记账、能查装备。
    ============================================================ */
 
-const VERSION = 'trailnote-v5';
+const VERSION = 'trailnote-v6';
 const SHELL = `${VERSION}-shell`;
 
 const ASSETS = [
@@ -18,6 +18,7 @@ const ASSETS = [
   './js/ui.js',
   './js/members.js',
   './js/config.js',
+  './js/autosync.js',
   './js/sync.js',
   './js/share.js',
   './js/views/overview.js',

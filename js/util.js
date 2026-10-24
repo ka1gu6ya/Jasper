@@ -144,6 +144,20 @@ export function daysUntil(s) {
   return Math.round((d - t) / 86400000);
 }
 
+/** "3 分钟前" / "刚刚" */
+export function relTime(iso) {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return '';
+  const diff = Math.floor((Date.now() - t) / 1000);
+  if (diff < 30) return '刚刚';
+  if (diff < 60) return `${diff} 秒前`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
+  return String(iso).slice(0, 10);
+}
+
 export function nightsBetween(a, b) {
   const da = parseDay(a), db = parseDay(b);
   if (!da || !db) return 0;

@@ -112,7 +112,7 @@ export function buildPayload(store, trip) {
 
 /* ---------------- 发布 / 读取 / 撤回 ---------------- */
 
-export async function publishTrip(store, trip) {
+export async function publishTrip(store, trip, opts = {}) {
   if (!isSyncConfigured()) throw new Error('还没有配置 Supabase');
 
   const prev = trip.share || {};
@@ -128,6 +128,7 @@ export async function publishTrip(store, trip) {
 
   const version = Number(result?.version) || (Number(prev.version) || 0) + 1;
 
+  const nowIso = new Date().toISOString();
   store.commit((s) => {
     const t = s.trips.find((x) => x.id === trip.id);
     if (t) {
@@ -135,7 +136,10 @@ export async function publishTrip(store, trip) {
         token,
         editKey,
         version,
-        publishedAt: new Date().toISOString(),
+        publishedAt: nowIso,
+        // 自动同步用：记住这份内容的指纹，下次比对就知道有没有改过
+        syncedHash: opts.hash || null,
+        syncedAt: nowIso,
       };
     }
   }, { action: 'trip.share.publish', entity: 'trip', id: trip.id });

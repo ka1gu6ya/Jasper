@@ -5,7 +5,7 @@
 
 import {
   esc, fmtDate, fmtDateRange, fmtWeight, fmtKg, fmtMoney, fmtNum,
-  nightsBetween, eachDay, daysUntil,
+  nightsBetween, eachDay, daysUntil, relTime,
 } from '../util.js';
 import {
   computeWeights, baseWeightGrade, computeDifficulty, expenseStats,
@@ -18,7 +18,10 @@ import { store } from '../store.js';
 
 /* ---------------- 入口 ---------------- */
 
+let pollTimer = null;
+
 export async function renderShared(app, token) {
+  clearInterval(pollTimer);
   app.className = 'shared-shell';
   app.innerHTML = shell(loadingHTML());
 
@@ -48,6 +51,28 @@ function paint(app, token, data, opts) {
   const payload = data.payload;
   app.innerHTML = shell(bodyHTML(payload, data, opts), true);
   bind(app, token, payload);
+  watchForUpdates(app, token, data.version);
+}
+
+/** 页面开着的时候每 90 秒看一眼有没有新版（切到后台就暂停） */
+function watchForUpdates(app, token, version) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (document.visibilityState !== 'visible') return;
+    if (!document.getElementById('app').className.includes('shared-shell')) {
+      clearInterval(pollTimer);
+      return;
+    }
+    try {
+      const next = await fetchShared(token);
+      if (next && next.version !== version) {
+        clearInterval(pollTimer);
+        paint(app, token, next, {});
+      }
+    } catch {
+      // 网络抖动就跳过这一轮
+    }
+  }, 90000);
 }
 
 function shell(inner, withActions = false) {
@@ -156,7 +181,8 @@ function bodyHTML(payload, data, { stale }) {
 
     <p class="shared-foot">
       ${icon('lock', 12)}
-      这是一份只读快照，无法修改。由 TrailNote 生成于 ${esc(String(payload.exportedAt || '').slice(0, 10))}。
+      只读页面，无法修改。最后更新：${esc(relTime(data.updated_at || payload.exportedAt))}
+      · 保持打开会自动刷新
     </p>`;
 }
 

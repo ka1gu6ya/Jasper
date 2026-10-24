@@ -3,7 +3,7 @@
    三种状态：未配置后端 / 未分享 / 已分享
    ============================================================ */
 
-import { esc } from './util.js';
+import { esc, relTime } from './util.js';
 
 /** ISO 时间 → 本地「YYYY-MM-DD HH:mm」 */
 function fmtStamp(iso) {
@@ -15,6 +15,7 @@ function fmtStamp(iso) {
 }
 import { isSyncConfigured } from './config.js';
 import { publishTrip, revokeShare, shareLink } from './sync.js';
+import { status as autoStatus, subscribeStatus, syncNow } from './autosync.js';
 import { icon, openModal, confirmDialog, toast } from './ui.js';
 
 /* ---------------- 未配置：给一份手把手设置指引 ---------------- */
@@ -67,6 +68,7 @@ const isLocalHost = () =>
 
 function shareBody(trip) {
   const share = trip.share;
+  const st = autoStatus();
   if (!share) {
     return `
       <div class="share-intro">
@@ -76,9 +78,9 @@ function shareBody(trip) {
           <p>把这趟行程打包成快照，同行的人打开链接就能看完整计划——行程、装备清单和重量、花销明细都能看到，但改不了。</p>
         </div>
       </div>
-      <div class="callout">
-        ${icon('info', 14)}
-        <p>链接里的内容是「发布那一刻」的。你改了行程之后，回来点一下「更新链接内容」就行。</p>
+      <div class="callout callout--info">
+        ${icon('refresh', 14)}
+        <p><b>生成之后，你之后的改动会自动同步上去。</b>别人任何时候打开，看到的都是你最新的版本——不用再手动更新。</p>
       </div>
       <button class="btn btn--primary btn--block" data-share-action="publish">
         ${icon('link', 15)}生成分享链接
@@ -108,13 +110,17 @@ function shareBody(trip) {
       </div>` : ''}
 
     <div class="share-meta">
-      <span>${icon('refresh', 12)}第 ${esc(String(share.version || 1))} 版</span>
-      <span>${icon('clock', 12)}${esc(fmtStamp(share.publishedAt))}</span>
+      <span>${icon('share', 12)}第 ${esc(String(share.version || 1))} 版</span>
+      ${st.pending
+        ? `<span class="is-pending">${icon('refresh', 12)}有 ${st.pending} 处改动待上传</span>`
+        : `<span class="is-ok">${icon('check', 12)}已是最新${share.syncedAt ? ' · ' + esc(relTime(share.syncedAt)) : ''}</span>`}
     </div>
+
+    ${st.pending && st.lastError ? `<div class="callout callout--warn">${icon('alert', 14)}<p>上次同步失败：${esc(st.lastError)}。改动保留在本机，网络恢复后会自动重试。</p></div>` : ''}
 
     <div class="share-actions">
       <button class="btn btn--ghost btn--sm" data-share-action="open">${icon('globe', 13)}预览</button>
-      <button class="btn btn--ghost btn--sm" data-share-action="update">${icon('refresh', 13)}更新链接内容</button>
+      <button class="btn btn--ghost btn--sm" data-share-action="update">${icon('refresh', 13)}立即同步</button>
       <button class="btn btn--ghost btn--sm share-danger" data-share-action="revoke">${icon('trash', 13)}停止分享</button>
     </div>`;
 }
@@ -139,9 +145,21 @@ export function openShareModal(ctx) {
   const backdrop = modal.el;
   const bodyEl = backdrop.querySelector('[data-share-body]');
 
+  let alive = true;
   const refresh = () => {
+    if (!alive) return;
     bodyEl.innerHTML = shareBody(trip);
   };
+
+  // 同步状态变化时（比如自动上传完成）刷新弹窗里的提示
+  const unsub = subscribeStatus(() => refresh());
+  const stop = () => { alive = false; unsub(); };
+  backdrop.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]') || e.target === backdrop) stop();
+  });
+  document.addEventListener('keydown', function escClose(e) {
+    if (e.key === 'Escape') { stop(); document.removeEventListener('keydown', escClose); }
+  });
 
   backdrop.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-share-action]');
@@ -169,10 +187,11 @@ export function openShareModal(ctx) {
     if (action === 'publish' || action === 'update') {
       const original = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = `${icon('refresh', 13)}${action === 'update' ? '更新中…' : '生成中…'}`;
+      btn.innerHTML = `${icon('refresh', 13)}${action === 'update' ? '同步中…' : '生成中…'}`;
       try {
-        await publishTrip(store, trip);
-        toast(action === 'update' ? '链接内容已更新' : '链接已生成', 'success');
+        if (action === 'update') await syncNow();
+        else await publishTrip(store, trip);
+        toast(action === 'update' ? '已同步到最新' : '链接已生成，之后的改动会自动同步', 'success');
         refresh();
       } catch (err) {
         toast('失败：' + err.message, 'error');

@@ -1990,6 +1990,41 @@ code { font-family: var(--mono); font-size: 0.88em; }
   border-top: 1px solid var(--border);
 }
 
+/* 顶栏的「分享」按钮：带文字，别再让人找不到 */
+.btn--share {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+}
+.btn--share:hover {
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg-elev));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 分享弹窗里的同步状态 */
+.share-meta .is-ok { color: var(--accent); }
+.share-meta .is-pending { color: var(--warn); font-weight: 550; }
+
+/* 「数据存在哪」的三层说明 */
+.storage-layers { display: flex; flex-direction: column; gap: 13px; margin-bottom: 16px; }
+.slayer { display: flex; gap: 11px; }
+.slayer__n {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  display: grid; place-items: center;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.slayer > div > b { display: block; font-size: 13px; margin-bottom: 2px; }
+.slayer > div > p { font-size: 12.3px; color: var(--text-2); line-height: 1.62; }
+.slayer > div > p b { color: var(--text); font-weight: 600; }
+
 /* ---------------- 14. 弹窗 ---------------- */
 
 .modal-backdrop {

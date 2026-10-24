@@ -10,6 +10,8 @@ import {
   field, selectField, textareaField, formGrid, emptyState,
 } from './ui.js';
 import { parseSharedToken } from './sync.js';
+import { startAutoSync, status as autoStatus, syncNow } from './autosync.js';
+import { isSyncConfigured } from './config.js';
 import { openShareModal } from './share.js';
 import { renderShared } from './views/shared.js';
 
@@ -166,10 +168,11 @@ function sidebarHTML(activeTrip) {
 
       <div class="sidebar__foot">
         <button class="footrow" data-action="sync-info">
-          ${icon('refresh', 14)}
+          ${icon('database', 14)}
           <span class="footrow__text">${syncLabel()}</span>
-          <span class="sync-dot" data-sync="${store.syncState.status}"></span>
+          <span class="sync-dot" data-sync="${autoStatus().pending ? 'syncing' : 'idle'}"></span>
         </button>
+        ${activeTrip ? `<button class="footrow" data-action="share-trip">${icon('share', 14)}<span class="footrow__text">分享行程（只读）</span></button>` : ''}
         ${activeTrip ? `<button class="footrow" data-action="edit-trip">${icon('edit', 14)}<span class="footrow__text">编辑行程信息</span></button>` : ''}
         <button class="footrow" data-action="data-menu">${icon('sliders', 14)}<span class="footrow__text">数据与设置</span></button>
         <button class="footrow" data-action="toggle-theme">${icon('moon', 14)}<span class="footrow__text">切换深色 / 浅色</span></button>
@@ -183,10 +186,11 @@ function typeColor(type) {
 }
 
 function syncLabel() {
-  const s = store.syncState;
-  if (s.status === 'syncing') return '同步中…';
-  if (s.status === 'error') return '同步失败';
-  return '仅本机存储';
+  const shared = store.data.trips.filter((t) => t.share).length;
+  const pending = autoStatus().pending;
+  if (pending) return `有 ${pending} 处改动待上传`;
+  if (shared) return `本机存储 · ${shared} 个分享`;
+  return '数据存在本机';
 }
 
 /* ==================== 顶部标签栏 ==================== */
@@ -205,7 +209,9 @@ function topbarHTML(trip, tab) {
       <button class="icon-btn topbar__menu" data-action="open-sidebar" aria-label="行程列表">${icon('menu', 18)}</button>
       <nav class="tabs">${tabs}</nav>
       <div class="topbar__actions">
-        <button class="icon-btn" data-action="share-trip" title="分享行程">${icon('share', 16)}</button>
+        <button class="btn btn--sm btn--share" data-action="share-trip">
+          ${icon('share', 14)}<span>分享</span>
+        </button>
         <button class="icon-btn" data-action="edit-trip" title="编辑行程信息">${icon('edit', 16)}</button>
         <button class="icon-btn" data-action="export-json" title="导出备份">${icon('download', 16)}</button>
       </div>
@@ -451,20 +457,57 @@ function pickImportFile() {
 }
 
 function openSyncInfo() {
+  const shared = store.data.trips.filter((t) => t.share).length;
+  const st = autoStatus();
+
   openModal({
-    title: '同步状态',
-    size: 'sm',
+    title: '数据存在哪',
+    subtitle: '三层，各管一件事',
+    size: 'md',
     hideFooter: true,
     body: `
-      <div class="syncbox">
-        <div class="syncbox__head">${icon('refresh', 15)}${esc(syncLabel())}<span class="sync-dot" data-sync="${store.syncState.status}"></span></div>
-        <p>第一版是<b>本地优先</b>：所有数据保存在当前浏览器的 IndexedDB / localStorage 里，
-           不依赖网络，山里没信号也能查装备、记账。</p>
-        <p>同步接口已经留好位置：<code>store.commit()</code> 是唯一写入口，每次写入都会追加操作记录；
-           接上后端时只需实现 <code>push / pull</code>，界面不动。</p>
-        <p class="muted">暂时换设备请用「数据与设置 → 导出备份」。</p>
+      <div class="storage-layers">
+        <div class="slayer">
+          <span class="slayer__n">1</span>
+          <div>
+            <b>你的行程数据</b>
+            <p>存在<b>这台设备的浏览器</b>里（localStorage）。不联网也在，但换设备不会跟着走。</p>
+          </div>
+        </div>
+        <div class="slayer">
+          <span class="slayer__n">2</span>
+          <div>
+            <b>网页本身</b>
+            <p>托管在 <b>GitHub Pages</b>。它只负责把这个界面送到你的浏览器，<b>不保存你的任何行程内容</b>。</p>
+          </div>
+        </div>
+        <div class="slayer">
+          <span class="slayer__n">3</span>
+          <div>
+            <b>分享出去的那一份</b>
+            <p>点「分享」后生成的只读快照，存在 <b>Supabase</b> 数据库里。别人打开链接就是从这儿读的。</p>
+          </div>
+        </div>
       </div>
-      <button class="btn btn--primary btn--block" data-close>知道了</button>
+
+      <div class="callout callout--info">
+        ${icon('info', 14)}
+        <p>所以：<b>GitHub 上没有任何你的行程数据</b>。删掉仓库网页就没了，但你的数据不会被删；
+        反过来清空浏览器数据，云端已发布的分享也还在。</p>
+      </div>
+
+      ${shared ? `
+        <div class="callout">
+          ${icon('refresh', 14)}
+          <p>当前有 <b>${shared}</b> 个行程在分享中。${st.pending
+            ? `有 <b>${st.pending}</b> 处改动等待上传${st.lastError ? `（${esc(st.lastError)}）` : ''}。`
+            : '改动会自动同步，别人打开链接就是最新版。'}</p>
+        </div>` : ''}
+
+      <div class="modal__actions">
+        ${shared ? `<button class="btn btn--ghost btn--sm" data-action="force-sync">${icon('refresh', 13)}立即同步一次</button>` : ''}
+        <button class="btn btn--ghost btn--sm" data-close>关闭</button>
+      </div>
     `,
   });
 }
@@ -505,6 +548,20 @@ function bindGlobal() {
     if (a === 'export-json') { exportJSON(); return; }
     if (a === 'data-menu') { openDataMenu(); return; }
     if (a === 'sync-info') { openSyncInfo(); return; }
+    if (a === 'force-sync') {
+      const btn = btn;
+      btn.disabled = true;
+      btn.innerHTML = `${icon('refresh', 13)}同步中…`;
+      try {
+        await syncNow();
+        toast('已同步', 'success');
+      } catch (err) {
+        toast('同步失败：' + err.message, 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = `${icon('refresh', 13)}立即同步一次`;
+      return;
+    }
     if (a === 'toggle-theme') { toggleTheme(); return; }
 
     if (a === 'export-ics') {
@@ -553,6 +610,9 @@ function boot() {
   initTheme();
   bindGlobal();
   render();
+
+  // 配置了云端才需要自动同步
+  if (isSyncConfigured()) startAutoSync();
 
   // 注册 Service Worker（离线可用）
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
