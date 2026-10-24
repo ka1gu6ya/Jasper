@@ -633,6 +633,15 @@ class Store {
     this.emit();
   }
 
+  /** 用外部数据整体替换（多设备同步、导入合并时用） */
+  replaceAll(payload) {
+    this.data = this.migrate(payload);
+    this.data.meta.rev += 1;
+    this.data.meta.updatedAt = new Date().toISOString();
+    this.persist();
+    this.emit();
+  }
+
   /** 恢复演示数据 */
   resetToSeed() {
     this.data = seedState();

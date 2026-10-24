@@ -2,7 +2,7 @@
    app.js — 外壳：路由、侧边栏、标签页、数据管理、PWA
    ============================================================ */
 
-import { esc, fmtDateRange, fmtKg, uid, todayStr, addDays, download, slug } from './util.js';
+import { esc, fmtDateRange, fmtKg, uid, todayStr, addDays, download, slug, relTime } from './util.js';
 import { computeWeights, TRIP_TYPES } from './calc.js';
 import { store, CURRENCIES } from './store.js';
 import {
@@ -12,6 +12,8 @@ import {
 import { parseSharedToken } from './sync.js';
 import { startAutoSync, status as autoStatus, syncNow } from './autosync.js';
 import { isSyncConfigured } from './config.js';
+import { startVaultSync, status as vaultStatus } from './vault.js';
+import { openSyncPanel } from './syncui.js';
 import { openShareModal } from './share.js';
 import { renderShared } from './views/shared.js';
 
@@ -174,6 +176,11 @@ function sidebarHTML(activeTrip) {
         </button>
         ${activeTrip ? `<button class="footrow" data-action="share-trip">${icon('share', 14)}<span class="footrow__text">分享行程（只读）</span></button>` : ''}
         ${activeTrip ? `<button class="footrow" data-action="edit-trip">${icon('edit', 14)}<span class="footrow__text">编辑行程信息</span></button>` : ''}
+        <button class="footrow" data-action="sync-panel">
+          ${icon('refresh', 14)}
+          <span class="footrow__text">${vaultLabel()}</span>
+          ${vaultStatus().enabled ? `<span class="sync-dot" data-sync="${vaultStatus().syncing ? 'syncing' : 'idle'}"></span>` : ''}
+        </button>
         <button class="footrow" data-action="data-menu">${icon('sliders', 14)}<span class="footrow__text">数据与设置</span></button>
         <button class="footrow" data-action="toggle-theme">${icon('moon', 14)}<span class="footrow__text">切换深色 / 浅色</span></button>
         <div class="sidebar__hint">本地优先 · 数据存在这台设备上</div>
@@ -183,6 +190,15 @@ function sidebarHTML(activeTrip) {
 
 function typeColor(type) {
   return type === 'hiking' ? '#2f6b52' : type === 'city' ? '#5b6f8a' : '#8a6f4e';
+}
+
+function vaultLabel() {
+  const st = vaultStatus();
+  if (!st.enabled) return '开启多设备同步';
+  if (st.syncing) return '同步中…';
+  if (st.lastError) return '同步失败';
+  if (st.pending) return '有改动待同步';
+  return st.lastSyncedAt ? `已同步 · ${relTime(st.lastSyncedAt)}` : '已开启同步';
 }
 
 function syncLabel() {
@@ -548,6 +564,7 @@ function bindGlobal() {
     if (a === 'export-json') { exportJSON(); return; }
     if (a === 'data-menu') { openDataMenu(); return; }
     if (a === 'sync-info') { openSyncInfo(); return; }
+    if (a === 'sync-panel') { openSyncPanel(); return; }
     if (a === 'force-sync') {
       const btn = btn;
       btn.disabled = true;
@@ -611,8 +628,14 @@ function boot() {
   bindGlobal();
   render();
 
-  // 配置了云端才需要自动同步
-  if (isSyncConfigured()) startAutoSync();
+  // 配置了云端才需要自动同步 / 多设备同步
+  if (isSyncConfigured()) {
+    startAutoSync();
+    startVaultSync();
+  }
+
+  // 同步把本机数据换掉之后，界面要跟着刷新
+  window.addEventListener('trailnote:data-replaced', () => render());
 
   // 注册 Service Worker（离线可用）
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {

@@ -2025,6 +2025,39 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .slayer > div > p { font-size: 12.3px; color: var(--text-2); line-height: 1.62; }
 .slayer > div > p b { color: var(--text); font-weight: 600; }
 
+.sync-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.sync-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.sync-choice b { font-size: 13px; }
+.sync-choice p { font-size: 11.8px; color: var(--text-3); line-height: 1.5; flex: 1; }
+.sync-choice .btn { margin-top: 7px; align-self: flex-start; }
+
+/* 可折叠区块（只读页的花销明细等） */
+.fold { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 2px; }
+.fold__summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-2);
+  list-style: none;
+}
+.fold__summary::-webkit-details-marker { display: none; }
+.fold__summary em { font-style: normal; color: var(--text-3); font-size: 11.5px; margin-left: auto; }
+.fold__summary .ic:last-child { transition: transform 0.2s; color: var(--text-3); }
+.fold[open] .fold__summary .ic:last-child { transform: rotate(180deg); }
+.fold[open] .fold__summary { margin-bottom: 4px; }
+
 /* ---------------- 14. 弹窗 ---------------- */
 
 .modal-backdrop {
@@ -2387,6 +2420,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
   .view--shared { padding: 14px 14px 70px; }
   .sharelink { flex-direction: column; }
   .sharelink__input { font-size: 11.5px; }
+  .sync-choices { grid-template-columns: 1fr; }
   .share-intro { gap: 10px; }
   .share-intro__icon { width: 38px; height: 38px; border-radius: 10px; }
 

@@ -11,6 +11,7 @@ import {
   computeWeights, baseWeightGrade, computeDifficulty, expenseStats,
   TRIP_TYPES, GEAR_CATEGORIES, catOf, bookingTypeOf, expenseCatOf,
   itemTypeOf, TERRAINS, memberInitial, weightsByOwner,
+  toBase, memberName,
 } from '../calc.js';
 import { icon, badge } from '../ui.js';
 import { fetchShared, readCache, importShared } from '../sync.js';
@@ -177,7 +178,7 @@ function bodyHTML(payload, data, { stale }) {
     ${days.length ? itineraryCard(days) : ''}
     ${bookings.length ? bookingsCard(bookings) : ''}
     ${gear.length ? gearCard(w, gear, members) : ''}
-    ${money.byCategory.length ? moneyCard(money, settings) : ''}
+    ${money.byCategory.length ? moneyCard(money, settings, expenses, trip) : ''}
 
     <p class="shared-foot">
       ${icon('lock', 12)}
@@ -325,12 +326,19 @@ function gradeLabel(w) {
   return `${g.label}`;
 }
 
-function moneyCard(money, settings) {
+function moneyCard(money, settings, expenses, trip) {
+  const base = money.baseCurrency;
+  const members = trip.members || [];
+  const sorted = [...expenses].sort((a, b) => {
+    const d = String(b.date || '').localeCompare(String(a.date || ''));
+    return d !== 0 ? d : String(a.id).localeCompare(String(b.id));
+  });
+
   return `
     <section class="card">
       <header class="card__head">
         <h2 class="card__title">${icon('wallet', 15)}花销概况</h2>
-        <span class="card__note">${fmtMoney(money.total, money.baseCurrency)} · ${money.count} 笔</span>
+        <span class="card__note">${fmtMoney(money.total, base)} · ${money.count} 笔</span>
       </header>
       <div class="catbars catbars--money">
         ${money.byCategory.map((c) => {
@@ -348,6 +356,33 @@ function moneyCard(money, settings) {
           <span class="money-currs__label">多币种</span>
           ${money.byCurrency.map((c) => `<span class="currchip">${esc(c.currency)} <b>${fmtNum(c.amount, 0)}</b></span>`).join('')}
         </div>` : ''}
+
+      <details class="fold">
+        <summary class="fold__summary">
+          ${icon('list', 13)}<span>花销明细</span><em>${sorted.length} 笔</em>${icon('chevronDown', 14)}
+        </summary>
+        <ul class="sharedlist sharedlist--tight">
+          ${sorted.map((e) => {
+            const cat = expenseCatOf(e.category);
+            const converted = e.currency !== base;
+            const payer = members.length >= 2 && e.paidBy ? memberName(trip, e.paidBy) : '';
+            return `
+              <li class="sharedlist__item sharedlist__item--plain">
+                <span class="sharedlist__icon" style="color:${cat.color}">${icon(cat.icon, 13)}</span>
+                <span class="sharedlist__body">
+                  <span class="sharedlist__title">${esc(e.note || cat.name)}</span>
+                  <span class="sharedlist__meta">
+                    ${esc(fmtDate(e.date, { short: true, weekday: false }))} · ${esc(cat.name)}${payer ? ' · ' + esc(payer) + ' 付' : ''}${e.memo ? ' · ' + esc(e.memo) : ''}
+                  </span>
+                </span>
+                <span class="sharedlist__side">
+                  <b>${fmtMoney(e.amount, e.currency)}</b>
+                  ${converted ? `<em>≈ ${fmtMoney(toBase(e.amount, e.currency, settings), base)}</em>` : ''}
+                </span>
+              </li>`;
+          }).join('')}
+        </ul>
+      </details>
     </section>`;
 }
 

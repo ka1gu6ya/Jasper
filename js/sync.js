@@ -53,7 +53,7 @@ function friendlyError(raw, status) {
 
 /* ---------------- RPC ---------------- */
 
-async function rpc(name, params) {
+export async function rpc(name, params) {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) throw new Error('还没有配置 Supabase（js/config.js）');
 
