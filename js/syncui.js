@@ -82,6 +82,13 @@ function bodyHTML(st) {
         <p>上次同步失败：${esc(st.lastError)}。改动还在本机，网络恢复后会自动重试。</p>
       </div>` : ''}
 
+    ${st.conflicts && st.conflicts.length ? `
+      <div class="callout callout--warn">
+        ${icon('alert', 14)}
+        <p>有 <b>${st.conflicts.length}</b> 条记录在两边同时被改过，已保留<b>本机版本</b>。
+        如果发现云端那份才是你要的，可以用下面的「恢复同步前的备份」。</p>
+      </div>` : ''}
+
     ${st.pending ? `
       <div class="callout">
         ${icon('refresh', 14)}
