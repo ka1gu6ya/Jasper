@@ -15,7 +15,7 @@ export const TRIP_TYPES = [
 
 export const GEAR_CATEGORIES = [
   { id: 'pack', name: '背包', color: '#6b7f6e', icon: 'backpack' },
-  { id: 'shelter', name: '庇护所', color: '#8a6f4e', icon: 'tent' },
+  { id: 'shelter', name: '帐篷', color: '#8a6f4e', icon: 'tent' },
   { id: 'sleep', name: '睡眠系统', color: '#5b6f8a', icon: 'moon' },
   { id: 'clothing', name: '衣物', color: '#7a5f8a', icon: 'shirt' },
   { id: 'cook', name: '炊具', color: '#9a7c3f', icon: 'flame' },
