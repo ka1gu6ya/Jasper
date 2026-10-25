@@ -32,7 +32,7 @@ const VIEWS = {
 };
 
 const TABS = Object.keys(VIEWS);
-const BUILD = 'v11';   // 每次部署 +1，方便确认手机上是哪一版
+const BUILD = 'v12';   // 每次部署 +1，方便确认手机上是哪一版
 
 /* ==================== 主题 ==================== */
 
@@ -353,6 +353,9 @@ function openDataMenu() {
         <button class="menu-item" data-action="export-json">
           ${icon('download', 16)}<span><b>导出备份</b><em>下载一个 JSON 文件，含全部行程数据</em></span>
         </button>
+        <button class="menu-item" data-action="import-trip">
+          ${icon('plus', 16)}<span><b>导入行程（合并）</b><em>从 JSON 添加一趟行程，现有数据不受影响</em></span>
+        </button>
         <button class="menu-item" data-action="import-json">
           ${icon('upload', 16)}<span><b>导入备份</b><em>从 JSON 文件恢复（会覆盖当前数据）</em></span>
         </button>
@@ -396,6 +399,11 @@ function openDataMenu() {
         if (a === 'import-json') {
           close();
           setTimeout(pickImportFile, 220);
+          return;
+        }
+        if (a === 'import-trip') {
+          close();
+          setTimeout(pickTripFile, 220);
           return;
         }
         if (a === 'reseed') {
@@ -446,6 +454,27 @@ function openDataMenu() {
 function exportJSON() {
   download(`trailnote-备份-${todayStr()}.json`, store.exportJSON());
   toast('备份已下载', 'success');
+}
+
+/** 导入单趟行程：合并进现有数据，不覆盖 */
+function pickTripFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      const id = store.mergeTripPayload(payload);
+      const t = store.trip(id);
+      toast(`已导入「${t.name}」`, 'success');
+      navigate(id, 'itinerary');
+    } catch (err) {
+      toast('导入失败：' + err.message, 'error');
+    }
+  });
+  input.click();
 }
 
 function pickImportFile() {

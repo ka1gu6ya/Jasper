@@ -633,6 +633,53 @@ class Store {
     this.emit();
   }
 
+  /**
+   * 把一份「单行程」数据合并进现有数据，不影响其他行程。
+   * payload 形如 { trip, days, bookings, gear, expenses }
+   */
+  mergeTripPayload(payload) {
+    const p = payload && payload.trip ? payload : null;
+    if (!p) throw new Error('文件里找不到 trip 字段，可能不是行程文件');
+    const src = p.trip || {};
+    const tripId = uid('trip_');
+    const now = new Date().toISOString();
+
+    const names = new Set(this.data.trips.map((t) => t.name));
+    const baseName = src.name || '导入的行程';
+    let name = baseName;
+    let n = 2;
+    while (names.has(name)) name = `${baseName} (${n++})`;
+
+    this.commit((s) => {
+      s.trips.push({
+        id: tripId,
+        name,
+        destination: src.destination || '',
+        startDate: src.startDate,
+        endDate: src.endDate || src.startDate,
+        type: src.type || 'mixed',
+        budget: Number(src.budget) || 0,
+        notes: src.notes || '',
+        members: Array.isArray(src.members) ? src.members : [],
+        createdAt: src.createdAt || now,
+        updatedAt: now,
+      });
+      for (const d of p.days || []) {
+        s.days.push({
+          ...d,
+          id: uid('day_'),
+          tripId,
+          items: (d.items || []).map((it) => ({ ...it, id: uid('it_') })),
+        });
+      }
+      for (const b of p.bookings || []) s.bookings.push({ ...b, id: uid('bk_'), tripId });
+      for (const g of p.gear || []) s.gear.push({ ...g, id: uid('gear_'), tripId });
+      for (const e of p.expenses || []) s.expenses.push({ ...e, id: uid('ex_'), tripId });
+    }, { action: 'trip.merge', entity: 'trip', id: tripId });
+
+    return tripId;
+  }
+
   /** 用外部数据整体替换（多设备同步、导入合并时用） */
   replaceAll(payload) {
     this.data = this.migrate(payload);
